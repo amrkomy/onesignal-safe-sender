@@ -1,38 +1,58 @@
-const ONESIGNAL_APP_ID = "64707772-4a53-4703-a512-a29a81f989af";
-const ONESIGNAL_REST_KEY = "os_v2_app_mryho4skkndqhjisuknid6mjv7gdwz6j7h2ui7mnnb5yrqryqduwxrh67rfnrektgmcf5c4vqbfsc5yljgdrywg2gawpd3hvjy4cdyq";
+// netlify/functions/sendNotification.js
 
 exports.handler = async (event) => {
+  // التحقق من المنهج
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  const { title, message, imageUrl } = JSON.parse(event.body);
+  // جلب المتغيرات من البيئة
+  const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID;
+  const ONESIGNAL_REST_KEY = process.env.ONESIGNAL_REST_KEY;
 
-  const payload = {
-    app_id: ONESIGNAL_APP_ID,
-    included_segments: ["All"],
-    headings: { en: title },
-    contents: { en: message },
-    chrome_web_image: imageUrl || undefined,
-  };
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_KEY) {
+    console.error("Missing OneSignal environment variables");
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Server misconfiguration" }),
+    };
+  }
 
-  const response = await fetch("https://onesignal.com/api/v1/notifications", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${ONESIGNAL_REST_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const { title, message, imageUrl } = JSON.parse(event.body || "{}");
 
-  const result = await response.json();
+    const payload = {
+      app_id: ONESIGNAL_APP_ID,
+      included_segments: ["All"],
+      headings: { en: title },
+      contents: { en: message },
+      chrome_web_image: imageUrl || undefined,
+    };
 
-  return {
-    statusCode: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-    body: JSON.stringify(result),
-  };
+    const response = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${ONESIGNAL_REST_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: JSON.stringify(result),
+    };
+  } catch (error) {
+    console.error("Function error:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message }),
+    };
+  }
 };
